@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lịch Sử - Hệ Thống Quản Lý Xe Tự Hành</title>
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="images/logo.png" />
+    <link rel="shortcut icon" href="images/logo.png" />
+    <link rel="apple-touch-icon" href="images/logo.png" />
+
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  </head>
+  <body>
+    <!-- ==================== LOGIN OVERLAY ==================== -->
+    <div id="loginOverlay" class="login-overlay active">
+      <div class="login-container">
+        <div class="login-header">
+          <h1>🚀Quản Lý Xe Tự Hành tích hợp xử lý rác</h1>
+          <p>Phân Loại & Thu Gom Rác Thải Thông Minh</p>
+        </div>
+
+        <form id="loginForm" class="login-form">
+          <div class="form-group">
+            <label for="username">Tài Khoản Quản Trị</label>
+            <input
+              type="text"
+              id="username"
+              placeholder="Nhập tài khoản"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Mật Khẩu</label>
+            <input
+              type="password"
+              id="password"
+              placeholder="Nhập mật khẩu"
+              required
+            />
+          </div>
+
+          <button type="submit" class="login-btn">Đăng Nhập</button>
+        </form>
+
+        <div class="login-footer">
+          <p>Demo: admin / 12345</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== HISTORY PAGE ==================== -->
+    <div
+      id="historyPage"
+      class="dashboard history-page"
+      style="visibility: hidden"
+    >
+      <!-- Header -->
+      <header class="dashboard-header">
+        <div class="header-left">
+          <h1>
+            <img src="images/icon_history.png" alt="Logo" class="header-icon" />
+            Lịch Sử & Thống Kê
+          </h1>
+          <p id="systemStatus" class="system-status">● Hệ Thống: Hoạt Động</p>
+        </div>
+        <div class="header-right">
+          <span id="userName" class="user-info"></span>
+          <span id="firebaseStatus" class="firebase-status disconnected"
+            >Disconnected</span
+          >
+
+          <div class="dashboard-controls">
+            <button id="historyNavBtn" class="history-nav-btn">
+              <img
+                src="images/icon_history.png"
+                alt="History"
+                class="inline-icon ctrl-icon"
+              />
+              Lịch Sử
+            </button>
+
+            <!-- Hamburger menu (adjacent to history) -->
+            <button id="headerMenuBtn" class="menu-btn" aria-label="Mở menu">
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+            </button>
+
+            <div id="headerMenu" class="header-menu" aria-hidden="true">
+              <button id="themeToggleBtn" class="menu-item">
+                <img
+                  src="images/icon_mode.png"
+                  alt="Mode"
+                  class="inline-icon icon-mode"
+                />
+                Chuyển giao diện
+              </button>
+              <button id="logoutBtn" class="menu-item">
+                <img
+                  src="images/icon_logout.png"
+                  alt="Logout"
+                  class="inline-icon icon-logout"
+                />
+                Đăng Xuất
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="dashboard-content" style="display: block; overflow-y: auto">
+        <!-- History Section Full Page -->
+        <div
+          class="history-section active"
+          style="max-width: 1200px; margin: 0 auto"
+        >
+          <div class="history-tabs">
+            <button
+              class="history-tab-btn active"
+              data-tab="activities"
+              id="tabActivities"
+            >
+              📋 Hoạt Động
+            </button>
+            <button class="history-tab-btn" data-tab="stats" id="tabStats">
+              📈 Thống Kê
+            </button>
+          </div>
+
+          <!-- Activity History -->
+          <div class="history-content active" id="activitiesContent">
+            <div class="history-list" id="activitiesList">
+              <p class="empty-message">Chưa có hoạt động nào</p>
+            </div>
+          </div>
+
+          <!-- Statistics -->
+          <div class="history-content" id="statsContent">
+            <div class="stats-grid">
+              <!-- Removed total trips, distance, total trash as requested -->
+              <!-- Thời Gian Hoạt Động removed (moved to dashboard battery widget) -->
+              <div class="stat-card">
+                <label>Vô Cơ (lần)</label>
+                <span id="statInorganicCount">0</span>
+              </div>
+              <div class="stat-card">
+                <label>Hữu Cơ (lần)</label>
+                <span id="statOrganicCount">0</span>
+              </div>
+              <div class="stat-card">
+                <label>Tái Chế (lần)</label>
+                <span id="statRecycleCount">0</span>
+              </div>
+              <div class="stat-card">
+                <label>Khác (lần)</label>
+                <span id="statOtherCount">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- History Actions -->
+          <div class="history-actions">
+            <button
+              id="clearHistoryBtn"
+              class="history-action-btn clear-action"
+            >
+              🗑️ Xóa Lịch Sử
+            </button>
+            <button
+              id="exportHistoryBtn"
+              class="history-action-btn export-action"
+            >
+              📥 Xuất CSV
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Footer -->
+      <footer class="dashboard-footer">
+        <div class="footer-info">
+          <span id="currentTime">Thời gian: --:--:--</span>
+          <span id="connectionStatus" class="connection-good"
+            >🔗 Kết Nối: Tốt</span
+          >
+          <span id="ping">Ping: -- ms</span>
+        </div>
+      </footer>
+    </div>
+
+    <script src="main.js"></script>
+  </body>
+</html>
