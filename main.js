@@ -41,6 +41,7 @@ let appState = {
   wsConnected: false,
   autoSaveSnapshots: true,
   lastSnapshotSavedTs: null,
+  logFontSize: 13,
 };
 
 // IMU chart removed
@@ -127,6 +128,24 @@ function clearCommandLog() {
   if (logContent)
     logContent.innerHTML = '<p class="log-entry">[Nhật ký đã được xóa]</p>';
 }
+
+// Command log font size helpers
+function applyLogFontSize() {
+  const logContent = document.getElementById("commandLog");
+  if (!logContent) return;
+  const size = appState.logFontSize || 13;
+  logContent.style.fontSize = size + "px";
+}
+function increaseLogFont() {
+  appState.logFontSize = Math.min(28, (appState.logFontSize || 13) + 1);
+  localStorage.setItem("commandLogFontSize", String(appState.logFontSize));
+  applyLogFontSize();
+}
+function decreaseLogFont() {
+  appState.logFontSize = Math.max(10, (appState.logFontSize || 13) - 1);
+  localStorage.setItem("commandLogFontSize", String(appState.logFontSize));
+  applyLogFontSize();
+}
 function updateCurrentTime() {
   const now = new Date();
   const timeString = now.toLocaleTimeString("vi-VN");
@@ -181,21 +200,20 @@ function updateStatistics() {
 function loadUserPreferences() {
   const speedSlider = document.getElementById("speedSlider");
   const modeSelect = document.getElementById("modeSelect");
-  if (!speedSlider || !modeSelect) return;
   const savedSpeed = localStorage.getItem("robotSpeed");
   const savedMode = localStorage.getItem("robotMode");
-  if (savedSpeed) {
+  if (savedSpeed && speedSlider) {
     speedSlider.value = savedSpeed;
-    document.getElementById("speedValue").textContent = savedSpeed + "%";
+    const speedValueEl = document.getElementById("speedValue");
+    if (speedValueEl) speedValueEl.textContent = savedSpeed + "%";
   }
-  if (savedMode) modeSelect.value = savedMode;
+  if (savedMode && modeSelect) modeSelect.value = savedMode;
 }
 function saveUserPreferences() {
   const speedSlider = document.getElementById("speedSlider");
   const modeSelect = document.getElementById("modeSelect");
-  if (!speedSlider || !modeSelect) return;
-  localStorage.setItem("robotSpeed", speedSlider.value);
-  localStorage.setItem("robotMode", modeSelect.value);
+  if (speedSlider) localStorage.setItem("robotSpeed", speedSlider.value);
+  if (modeSelect) localStorage.setItem("robotMode", modeSelect.value);
 }
 
 // -------- firebase.js (no imports) --------
@@ -512,37 +530,38 @@ function getStatistics() {
 function updateWebSnapshot() {
   if (!appState.isAuthenticated) return; // Chỉ chạy khi đã đăng nhập thành công
 
+  // query DOM refs up-front so both then/catch can safely access them
+  const snapshotImg = document.getElementById("snapshotView");
+  const placeholder = document.getElementById("streamPlaceholder");
+  const placeholderIcon = document.getElementById("placeholderIcon");
+  const snapshotBadge = document.getElementById("snapshotBadgeIcon");
+  const metaDiv = document.getElementById("snapshotMeta");
+  const statusText = document.getElementById("cameraStatusText");
+  const statusDot = document.getElementById("cameraStatusDot");
+
   fetch(`${CONFIG.API_BASE_URL}/latest_info`)
     .then((response) => {
       if (response.ok) return response.json();
       throw new Error("Không phản hồi");
     })
     .then((data) => {
-      const snapshotImg = document.getElementById("snapshotView");
-      const placeholder = document.getElementById("streamPlaceholder");
-      const metaDiv = document.getElementById("snapshotMeta");
-      const statusText = document.getElementById("cameraStatusText");
-      const statusDot = document.getElementById("cameraStatusDot");
-
       if (data.available) {
-        // Cập nhật Badge trạng thái sang xanh (Xử lý xong)
         if (statusText) statusText.innerText = "DONE";
         if (statusDot) statusDot.style.backgroundColor = "#2ecc71";
 
-        // Hiển thị ảnh kèm ts chống cache trùng khớp với các ID trong index.html
         if (snapshotImg) {
           snapshotImg.src = `${CONFIG.API_BASE_URL}/latest.jpg?ts=${data.ts}`;
           snapshotImg.style.display = "block";
         }
         if (placeholder) placeholder.style.display = "none";
+        if (placeholderIcon) placeholderIcon.style.display = "none";
+        if (snapshotBadge) snapshotBadge.style.display = "block";
 
-        // Hiển thị text Nhãn kết quả đè lên góc ảnh
         if (metaDiv) {
           metaDiv.innerText = `Kết quả: ${data.label}`;
           metaDiv.style.display = "block";
         }
 
-        // Tự động lưu ảnh nếu được bật và nếu ảnh mới
         if (
           appState.autoSaveSnapshots &&
           data.ts &&
@@ -559,17 +578,32 @@ function updateWebSnapshot() {
           saveSnapshotImage(data.label || "unknown", snapshotImg.src, data.ts);
         }
       } else {
-        // Trả về trạng thái chờ ban đầu nếu chưa có ảnh rác mới
         if (statusText) statusText.innerText = "WAITING";
         if (statusDot) statusDot.style.backgroundColor = "#f1c40f";
+        if (snapshotImg) {
+          snapshotImg.style.display = "none";
+          try {
+            snapshotImg.removeAttribute("src");
+          } catch (e) {}
+        }
+        if (placeholder) placeholder.style.display = "block";
+        if (placeholderIcon) placeholderIcon.src = "images/icon_imgerr.png";
+        if (snapshotBadge) snapshotBadge.style.display = "none";
       }
     })
     .catch((err) => {
       // Trường hợp mất kết nối hoặc Flask camera server chưa chạy
-      const statusText = document.getElementById("cameraStatusText");
-      const statusDot = document.getElementById("cameraStatusDot");
       if (statusText) statusText.innerText = "OFFLINE";
       if (statusDot) statusDot.style.backgroundColor = "#e74c3c";
+      if (snapshotImg) {
+        snapshotImg.style.display = "none";
+        try {
+          snapshotImg.removeAttribute("src");
+        } catch (e) {}
+      }
+      if (placeholder) placeholder.style.display = "block";
+      if (placeholderIcon) placeholderIcon.src = "images/icon_imgerr.png";
+      if (snapshotBadge) snapshotBadge.style.display = "none";
     });
 }
 
@@ -718,19 +752,20 @@ function updateBatteryStatus(percentage) {
     const pct = Math.max(0, Math.min(100, Math.round(percentage)));
     batteryFill.style.width = pct + "%";
     batteryFill.classList.remove("low", "medium", "high");
+    // New thresholds: <20% = low (red), <40% = medium (yellow), otherwise high (green)
     if (pct < 20) batteryFill.classList.add("low");
-    else if (pct < 50) batteryFill.classList.add("medium");
+    else if (pct < 40) batteryFill.classList.add("medium");
     else batteryFill.classList.add("high");
   }
 
   const statusText = document.getElementById("batteryStatusText");
   if (statusText) {
-    if (percentage < 20) statusText.textContent = "Yếu";
-    else if (percentage < 50) statusText.textContent = "Thấp";
+    // Show unified warning at <40% per request
+    if (percentage < 40) statusText.textContent = "Pin yếu";
     else statusText.textContent = "Ổn";
   }
 
-  if (percentage < 20) addCommandLog(`🔋 Pin yếu! (${percentage}%)`, "warning");
+  if (percentage < 40) addCommandLog(`🔋 Pin yếu! (${percentage}%)`, "warning");
 }
 function updateRobotSpeed(speed) {
   if (CONFIG.DEMO_MODE) {
@@ -747,52 +782,7 @@ function handleModeChange(mode) {
   addCommandLog(`🔄 Chế độ: ${modeLabels[mode]}`, "command");
   updateFirebase("MODE_CHANGE_" + mode.toUpperCase());
 }
-function setupModeSelector() {
-  const modeSelect = document.getElementById("modeSelect");
-  if (modeSelect)
-    modeSelect.addEventListener("change", (e) => {
-      handleModeChange(e.target.value);
-    });
-}
-
-// -------- control.js (after sensors) --------
-function setupJoypadControls() {
-  const joypadButtons = document.querySelectorAll(".joypad-btn");
-  joypadButtons.forEach((button) => {
-    const command = button.getAttribute("data-command");
-    button.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      button.classList.add("active");
-      if (command != "STOP") sendCommand(command);
-    });
-    button.addEventListener("mouseup", (e) => {
-      e.preventDefault();
-      button.classList.remove("active");
-      if (command != "STOP") sendCommand("STOP");
-    });
-    button.addEventListener("mouseleave", () => {
-      button.classList.remove("active");
-      if (command != "STOP") sendCommand("STOP");
-    });
-    button.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      button.classList.add("active");
-      if (command != "STOP") sendCommand(command);
-    });
-    button.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      button.classList.remove("active");
-      if (command != "STOP") sendCommand("STOP");
-    });
-    if (command === "STOP") {
-      button.addEventListener("click", (e) => {
-        e.preventDefault();
-        sendCommand("STOP");
-        addCommandLog("⏹️ DỪNG NGAY LẬP TỨC", "warning");
-      });
-    }
-  });
-}
+// Mode selector removed
 function sendCommand(command) {
   if (!appState.isAuthenticated) return;
   appState.lastCommand = command;
@@ -824,21 +814,7 @@ function sendCommand(command) {
   }
   console.log("📤 Command sent:", command);
 }
-function setupSpeedControl() {
-  const speedSlider = document.getElementById("speedSlider");
-  if (speedSlider)
-    speedSlider.addEventListener("input", (e) => {
-      document.getElementById("speedValue").textContent = e.target.value + "%";
-      updateRobotSpeed(e.target.value);
-    });
-}
-function setupFunctionButtons() {
-  const collectBtn = document.getElementById("btnCollect");
-  const homeBtn = document.getElementById("btnHome");
-  if (collectBtn)
-    collectBtn.addEventListener("click", () => sendCommand("COLLECT"));
-  if (homeBtn) homeBtn.addEventListener("click", () => sendCommand("HOME"));
-}
+// Manual control handlers removed (buttons & joystick no longer present)
 
 // -------- auth.js (no imports) --------
 function handleLogin(e) {
@@ -941,6 +917,35 @@ function showNotification(message, type = "info") {
   }, 3000);
 }
 
+// Probe backend / Pi camera server to update connection badge even if user is not authenticated
+async function probeBackendConnection() {
+  const base =
+    (typeof localStorage !== "undefined" &&
+      localStorage.getItem("PI_CAMERA_URL")) ||
+    CONFIG.PI_CAMERA_URL ||
+    CONFIG.API_BASE_URL ||
+    null;
+  if (!base) {
+    setConnectionStatus(false);
+    return;
+  }
+  const url = base.replace(/\/$/, "") + "/bins_status?t=" + Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2500);
+  try {
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (res && res.ok) setConnectionStatus(true);
+    else setConnectionStatus(false);
+  } catch (err) {
+    clearTimeout(timeout);
+    setConnectionStatus(false);
+  }
+}
+
 // -------- router.js (no exports) --------
 const PAGES = { DASHBOARD: "dashboard", HISTORY: "history" };
 function getCurrentPage() {
@@ -1040,6 +1045,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener("click", () => {
       const isLight = document.body.classList.toggle("light-theme");
+      // if user toggles to light, clear any 'nature' preference (they can re-enable)
+      if (isLight) document.body.classList.remove("theme-nature");
       try {
         localStorage.setItem("theme", isLight ? "light" : "dark");
       } catch (e) {
@@ -1060,12 +1067,78 @@ document.addEventListener("DOMContentLoaded", () => {
 // -------- Original main.js initialization adapted (no imports) --------
 document.addEventListener("DOMContentLoaded", () => {
   console.log("🚀 Dashboard initialized");
+
+  // Global error overlay to help debug white-screen issues
+  window.addEventListener("error", (ev) => {
+    try {
+      let overlay = document.getElementById("debugErrorOverlay");
+      if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "debugErrorOverlay";
+        overlay.style.position = "fixed";
+        overlay.style.left = "12px";
+        overlay.style.right = "12px";
+        overlay.style.top = "12px";
+        overlay.style.padding = "12px";
+        overlay.style.background = "rgba(200,30,30,0.95)";
+        overlay.style.color = "#fff";
+        overlay.style.zIndex = 99999;
+        overlay.style.borderRadius = "8px";
+        overlay.style.maxHeight = "70vh";
+        overlay.style.overflow = "auto";
+        overlay.style.fontFamily = "Segoe UI, Tahoma, sans-serif";
+        document.body.appendChild(overlay);
+      }
+      overlay.innerText = `JS Error: ${ev.message}\nAt: ${ev.filename}:${ev.lineno}:${ev.colno}\nStack:\n${ev.error && ev.error.stack ? ev.error.stack : "n/a"}`;
+      overlay.style.display = "block";
+    } catch (e) {
+      console.error("Could not show debug overlay", e);
+    }
+  });
+  window.addEventListener("unhandledrejection", (ev) => {
+    try {
+      const overlay =
+        document.getElementById("debugErrorOverlay") ||
+        document.createElement("div");
+      overlay.id = "debugErrorOverlay";
+      overlay.style.position = "fixed";
+      overlay.style.left = "12px";
+      overlay.style.right = "12px";
+      overlay.style.top = "12px";
+      overlay.style.padding = "12px";
+      overlay.style.background = "rgba(200,30,30,0.95)";
+      overlay.style.color = "#fff";
+      overlay.style.zIndex = 99999;
+      overlay.style.borderRadius = "8px";
+      overlay.style.maxHeight = "70vh";
+      overlay.style.overflow = "auto";
+      overlay.style.fontFamily = "Segoe UI, Tahoma, sans-serif";
+      overlay.innerText = `Unhandled Rejection: ${ev.reason && ev.reason.stack ? ev.reason.stack : String(ev.reason)}`;
+      document.body.appendChild(overlay);
+      overlay.style.display = "block";
+    } catch (e) {
+      console.error("Could not show rejection overlay", e);
+    }
+  });
   // restore session from sessionStorage (persists for the tab/session)
   const savedAuth = sessionStorage.getItem("isAuthenticated") === "1";
   // theme restore: apply saved theme (localStorage) if present
   try {
     const savedTheme = localStorage.getItem("theme");
-    if (savedTheme === "light") document.body.classList.add("light-theme");
+    // savedTheme can be: 'light', 'dark' or 'nature'
+    if (savedTheme === "light") {
+      document.body.classList.add("light-theme");
+    } else if (savedTheme === "nature") {
+      // apply user's nature styling explicitly
+      document.body.classList.add("theme-nature");
+    } else if (savedTheme === "dark") {
+      // explicit dark: ensure no theme classes
+      document.body.classList.remove("light-theme");
+      document.body.classList.remove("theme-nature");
+    } else {
+      // No saved theme: default to 'nature' so primary green is visible
+      document.body.classList.add("theme-nature");
+    }
   } catch (e) {
     console.warn("Could not read theme setting:", e);
   }
@@ -1077,6 +1150,13 @@ document.addEventListener("DOMContentLoaded", () => {
   setCurrentPage(PAGES.DASHBOARD);
   // Initialize connection badge based on current state
   setConnectionStatus(appState.wsConnected);
+  // start a lightweight probe so the badge reflects backend reachability even if not logged in
+  try {
+    probeBackendConnection();
+    setInterval(probeBackendConnection, CONFIG.PING_INTERVAL || 3000);
+  } catch (e) {
+    console.warn("Could not start connection probe:", e);
+  }
   const loginOverlay = document.getElementById("loginOverlay");
   const logoutBtn = document.getElementById("logoutBtn");
   const userNameEl = document.getElementById("userName");
@@ -1332,12 +1412,23 @@ function initializeEventListeners() {
     updateSnapshotFolderLabel();
   }
 
-  setupJoypadControls();
-  setupSpeedControl();
-  setupModeSelector();
-  setupFunctionButtons();
+  // Manual control removed: joystick, speed slider, function buttons, mode selector
   const clearLogBtn = document.getElementById("clearLogBtn");
   if (clearLogBtn) clearLogBtn.addEventListener("click", clearCommandLog);
+  // command log zoom buttons
+  const zoomIn = document.getElementById("zoomInLogBtn");
+  const zoomOut = document.getElementById("zoomOutLogBtn");
+  if (zoomIn) zoomIn.addEventListener("click", increaseLogFont);
+  if (zoomOut) zoomOut.addEventListener("click", decreaseLogFont);
+  // restore font size from storage
+  try {
+    const saved = localStorage.getItem("commandLogFontSize");
+    if (saved)
+      appState.logFontSize = parseInt(saved, 10) || appState.logFontSize;
+  } catch (e) {
+    /* ignore */
+  }
+  applyLogFontSize();
 }
 
 const SNAPSHOT_HANDLE_DB_NAME = "snapshot-directory-store";
@@ -1584,53 +1675,7 @@ window.addEventListener("error", (event) => {
   addCommandLog("❌ Lỗi: " + (event.error?.message || event.message), "error");
 });
 
-document.addEventListener("keydown", (e) => {
-  if (!appState.isAuthenticated) return;
-  if (e.key === "ArrowUp" && !e.repeat) {
-    e.preventDefault();
-    document.getElementById("btnForward")?.classList.add("active");
-    sendCommand("FORWARD");
-  }
-  if (e.key === "ArrowDown" && !e.repeat) {
-    e.preventDefault();
-    document.getElementById("btnBackward")?.classList.add("active");
-    sendCommand("BACKWARD");
-  }
-  if (e.key === "ArrowLeft" && !e.repeat) {
-    e.preventDefault();
-    document.getElementById("btnLeft")?.classList.add("active");
-    sendCommand("LEFT");
-  }
-  if (e.key === "ArrowRight" && !e.repeat) {
-    e.preventDefault();
-    document.getElementById("btnRight")?.classList.add("active");
-    sendCommand("RIGHT");
-  }
-  if (e.code === "Space") {
-    e.preventDefault();
-    sendCommand("STOP");
-  }
-});
-
-document.addEventListener("keyup", (e) => {
-  if (!appState.isAuthenticated) return;
-  if (e.key === "ArrowUp") {
-    document.getElementById("btnForward")?.classList.remove("active");
-    sendCommand("STOP");
-  }
-  if (e.key === "ArrowDown") {
-    document.getElementById("btnBackward")?.classList.remove("active");
-    sendCommand("STOP");
-  }
-  if (e.key === "ArrowLeft") {
-    document.getElementById("btnLeft")?.classList.remove("active");
-    sendCommand("STOP");
-  }
-  if (e.key === "ArrowRight") {
-    document.getElementById("btnRight")?.classList.remove("active");
-    sendCommand("STOP");
-  }
-});
+// Keyboard manual-control handlers removed.
 
 window.addEventListener("beforeunload", () => {
   if (appState.isAuthenticated) saveUserPreferences();

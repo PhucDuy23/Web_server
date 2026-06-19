@@ -27,9 +27,8 @@
               alt="Login"
               class="inline-icon login-inline"
             />
-            Quản Lý Xe Tự Hành tích hợp xử lý rác
+            Quản Lý Xe Tự Hành tích hợp phân loại rác thải
           </h1>
-          <p>Phân Loại & Thu Gom Rác Thải Thông Minh</p>
         </div>
 
         <form id="loginForm" class="login-form">
@@ -57,7 +56,7 @@
         </form>
 
         <div class="login-footer">
-          <p>Demo: admin / 12345</p>
+          <p>Account: admin / 12345</p>
         </div>
       </div>
     </div>
@@ -71,7 +70,7 @@
             <img
               src="images/icon_dashboard.png"
               alt="Dashboard"
-              class="inline-icon"
+              class="inline-icon icon-dashboard"
             />
             Dashboard Quản Lý
           </h1>
@@ -172,7 +171,14 @@
 
           <!-- System Stats (now: battery capacity) -->
           <div class="system-stats">
-            <h3>🔋 Dung Lượng Pin</h3>
+            <h3>
+              <img
+                src="images/icon_pin.png"
+                alt="Pin"
+                class="inline-icon icon-pin"
+              />
+              Dung Lượng Pin
+            </h3>
             <div class="battery-widget">
               <div class="battery-header">
                 <span>Pin</span>
@@ -190,9 +196,6 @@
               <div class="battery-note">
                 Tình trạng: <span id="batteryStatusText">Ổn</span>
               </div>
-              <div class="battery-runtime">
-                Thời gian hoạt động: <strong id="batteryRuntime">—</strong>
-              </div>
             </div>
           </div>
         </aside>
@@ -202,7 +205,14 @@
           <!-- Video Stream -->
           <div class="video-container">
             <div class="video-header">
-              <h3>Ảnh phân loại gần nhất</h3>
+              <h3>
+                <img
+                  src="images/icon_img.png"
+                  alt=""
+                  class="inline-icon icon-img"
+                />
+                Ảnh phân loại gần nhất
+              </h3>
               <div id="cameraStatusBadge" class="camera-status">
                 <span id="cameraStatusDot" class="status-indicator"></span>
                 <span id="cameraStatusText">WAITING</span>
@@ -213,7 +223,6 @@
               <img
                 id="snapshotView"
                 src=""
-                alt="Ảnh phân loại rác mới nhất"
                 style="
                   width: 100%;
                   height: 100%;
@@ -239,9 +248,21 @@
 
               <!-- Hiển thị khi chưa có ảnh hoặc mất kết nối tới Flask camera server -->
               <div id="streamPlaceholder" class="video-placeholder">
-                <p>Chờ robot phát hiện rác...</p>
-                <small>Ảnh phân tích gần nhất sẽ hiển thị ở đây</small>
+                <img
+                  id="placeholderIcon"
+                  src="images/icon_imgerr.png"
+                  alt="No Image"
+                  class="placeholder-icon"
+                />
+                <p>Chờ hệ thống phát hiện rác...</p>
               </div>
+              <img
+                id="snapshotBadgeIcon"
+                src="images/icon_img.png"
+                alt="Image Icon"
+                class="snapshot-badge"
+                style="display: none"
+              />
             </div>
 
             <div class="snapshot-actions">
@@ -275,106 +296,34 @@
           <!-- IMU Monitor removed -->
         </section>
 
-        <!-- Right Sidebar - Manual Control -->
+        <!-- Right Sidebar (manual controls removed) -->
         <aside class="sidebar-right">
-          <!-- Manual Control Section -->
-          <div class="control-section active" id="controlSection">
-            <div class="manual-control">
-              <h3>
-                <img
-                  src="images/icon_manual.png"
-                  alt="Manual"
-                  class="inline-icon section-icon"
-                />
-                Điều Khiển Thủ Công
-              </h3>
-
-              <!-- Joypad Style Navigation -->
-              <div class="joypad-container">
-                <button
-                  class="joypad-btn joypad-up"
-                  id="btnForward"
-                  data-command="FORWARD"
-                  title="Tiến Lên"
-                >
-                  ▲
-                </button>
-
-                <div class="joypad-middle">
-                  <button
-                    class="joypad-btn joypad-left"
-                    id="btnLeft"
-                    data-command="LEFT"
-                    title="Quay Trái"
-                  >
-                    ◄
-                  </button>
-                  <button
-                    class="joypad-btn joypad-center"
-                    id="btnStop"
-                    data-command="STOP"
-                    title="Dừng"
-                  >
-                    ◆
-                  </button>
-                  <button
-                    class="joypad-btn joypad-right"
-                    id="btnRight"
-                    data-command="RIGHT"
-                    title="Quay Phải"
-                  >
-                    ►
-                  </button>
-                </div>
-
-                <button
-                  class="joypad-btn joypad-down"
-                  id="btnBackward"
-                  data-command="BACKWARD"
-                  title="Lùi Lại"
-                >
-                  ▼
-                </button>
-              </div>
-
-              <!-- Speed Control -->
-              <div class="control-group">
-                <label for="speedSlider">Tốc Độ</label>
-                <input
-                  type="range"
-                  id="speedSlider"
-                  min="10"
-                  max="100"
-                  value="50"
-                />
-                <span id="speedValue">50%</span>
-              </div>
-
-              <!-- Function Buttons -->
-              <div class="control-group">
-                <button id="btnCollect" class="function-btn collect-btn">
-                  <span>🗑️ Thu Gom</span>
-                </button>
-                <button id="btnHome" class="function-btn home-btn">
-                  <span>🏠 QUAY VỀ</span>
-                </button>
-              </div>
-
-              <!-- Mode Selection -->
-              <div class="control-group">
-                <label for="modeSelect">Chế Độ</label>
-                <select id="modeSelect" class="mode-select">
-                  <option value="auto">Tự Động</option>
-                  <option value="manual">Thủ Công</option>
-                  <option value="idle">Chờ</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
           <!-- Command Log -->
           <div class="command-log">
-            <h3>Nhật Ký Lệnh</h3>
+            <h3>
+              <img
+                src="images/icon_log.png"
+                alt="Nhật ký"
+                class="inline-icon icon-log"
+              />
+              Nhật Ký Hoạt Động
+              <span class="log-controls">
+                <button
+                  id="zoomOutLogBtn"
+                  class="small-btn"
+                  title="Thu nhỏ chữ"
+                >
+                  A-
+                </button>
+                <button
+                  id="zoomInLogBtn"
+                  class="small-btn"
+                  title="Phóng to chữ"
+                >
+                  A+
+                </button>
+              </span>
+            </h3>
             <div class="log-content" id="commandLog">
               <p class="log-entry">[Chờ lệnh...]</p>
             </div>
