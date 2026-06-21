@@ -4,8 +4,8 @@
 
 // -------- config.js --------
 const CONFIG = {
-  API_BASE_URL: "http://192.168.1.153:8085",
-  WS_URL: "ws://192.168.1.153:8080",
+  API_BASE_URL: "http://10.163.215.207:8085",
+  WS_URL: "ws://10.163.215.207:8080",
   DEMO_MODE: false,
   CHART_UPDATE_INTERVAL: 1000,
   TRASH_CHECK_INTERVAL: 2000,
@@ -275,7 +275,12 @@ function generateDemoHistory() {
     },
     {
       id: Date.now() + 11,
-      description: "📌 Sự kiện: Pin còn 72%",
+      description:
+        "📌 Sự kiện: Pin còn " +
+        ((typeof localStorage !== "undefined" &&
+          localStorage.getItem("latestBattery")) ||
+          "72") +
+        "%",
       type: "event",
       timestamp: new Date(Date.now() - 1000 * 60 * 35).toLocaleString("vi-VN"),
       time: new Date(Date.now() - 1000 * 60 * 35).toLocaleTimeString("vi-VN"),
@@ -766,6 +771,49 @@ function updateBatteryStatus(percentage) {
   }
 
   if (percentage < 40) addCommandLog(`🔋 Pin yếu! (${percentage}%)`, "warning");
+  // persist latest battery so other pages/tabs can pick it up
+  try {
+    if (typeof localStorage !== "undefined")
+      localStorage.setItem("latestBattery", String(Math.round(percentage)));
+  } catch (e) {
+    /* ignore */
+  }
+  // Update history activities: keep a single latest 'Pin còn' event in sync
+  try {
+    if (
+      typeof historyData !== "undefined" &&
+      Array.isArray(historyData.activities)
+    ) {
+      const prefix = "📌 Sự kiện: Pin còn ";
+      const existingIndex = historyData.activities.findIndex(
+        (a) =>
+          typeof a.description === "string" && a.description.startsWith(prefix),
+      );
+      const newDesc = `${prefix}${Math.round(percentage)}%`;
+      if (existingIndex !== -1) {
+        historyData.activities[existingIndex].description = newDesc;
+        historyData.activities[existingIndex].timestamp =
+          new Date().toLocaleString("vi-VN");
+        historyData.activities[existingIndex].time =
+          new Date().toLocaleTimeString("vi-VN");
+      } else {
+        // insert as latest activity
+        historyData.activities.unshift({
+          id: Date.now(),
+          description: newDesc,
+          type: "event",
+          timestamp: new Date().toLocaleString("vi-VN"),
+          time: new Date().toLocaleTimeString("vi-VN"),
+        });
+        // keep activities list bounded
+        if (historyData.activities.length > 100) historyData.activities.pop();
+      }
+      // refresh display if history visible
+      if (typeof updateActivityDisplay === "function") updateActivityDisplay();
+    }
+  } catch (e) {
+    console.warn("Could not sync battery event to history:", e);
+  }
 }
 function updateRobotSpeed(speed) {
   if (CONFIG.DEMO_MODE) {
@@ -1054,11 +1102,64 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+  // Listen for battery updates from other tabs/windows via localStorage
+  try {
+    window.addEventListener("storage", (e) => {
+      if (!e.key) return;
+      if (e.key === "latestBattery") {
+        const val = e.newValue || e.oldValue;
+        if (!val) return;
+        try {
+          const prefix = "📌 Sự kiện: Pin còn ";
+          const newDesc = `${prefix}${Math.round(Number(val))}%`;
+          if (historyData && Array.isArray(historyData.activities)) {
+            const idx = historyData.activities.findIndex(
+              (a) =>
+                typeof a.description === "string" &&
+                a.description.startsWith(prefix),
+            );
+            if (idx !== -1) {
+              historyData.activities[idx].description = newDesc;
+              historyData.activities[idx].timestamp = new Date().toLocaleString(
+                "vi-VN",
+              );
+              historyData.activities[idx].time = new Date().toLocaleTimeString(
+                "vi-VN",
+              );
+            } else {
+              historyData.activities.unshift({
+                id: Date.now(),
+                description: newDesc,
+                type: "event",
+                timestamp: new Date().toLocaleString("vi-VN"),
+                time: new Date().toLocaleTimeString("vi-VN"),
+              });
+              if (historyData.activities.length > 100)
+                historyData.activities.pop();
+            }
+            if (typeof updateActivityDisplay === "function")
+              updateActivityDisplay();
+          }
+        } catch (err) {
+          console.warn("Failed to apply latestBattery from storage event", err);
+        }
+      }
+    });
+  } catch (e) {
+    /* ignore */
+  }
   // Ensure periodic updates run on history page as well
   try {
     updateCurrentTime();
     updatePing();
     startAutoUpdates();
+    // ensure history page shows current connection status too
+    try {
+      probeBackendConnection();
+      setInterval(probeBackendConnection, CONFIG.PING_INTERVAL || 3000);
+    } catch (e) {
+      /* ignore */
+    }
   } catch (e) {
     console.warn("Could not start auto updates on history page:", e);
   }

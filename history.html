@@ -17,7 +17,14 @@
     <div id="loginOverlay" class="login-overlay active">
       <div class="login-container">
         <div class="login-header">
-          <h1>🚀Quản Lý Xe Tự Hành tích hợp phân loại rác thải</h1>
+          <h1>
+            <img
+              src="images/icon_login.png"
+              alt="Login"
+              class="inline-icon login-inline"
+            />
+            Quản Lý Xe Tự Hành tích hợp phân loại rác thải
+          </h1>
         </div>
 
         <form id="loginForm" class="login-form">
@@ -41,11 +48,13 @@
             />
           </div>
 
-          <button type="submit" class="login-btn">Đăng Nhập</button>
+          <button type="submit" class="login-btn green-gradient">
+            Đăng Nhập
+          </button>
         </form>
 
         <div class="login-footer">
-          <p>Demo: admin / 12345</p>
+          <p>Account: admin / 12345</p>
         </div>
       </div>
     </div>
@@ -115,13 +124,17 @@
         <div class="history-section active">
           <div class="history-tabs">
             <button
-              class="history-tab-btn active"
+              class="history-tab-btn active green-gradient"
               data-tab="activities"
               id="tabActivities"
             >
               📋 Hoạt Động
             </button>
-            <button class="history-tab-btn" data-tab="stats" id="tabStats">
+            <button
+              class="history-tab-btn green-gradient"
+              data-tab="stats"
+              id="tabStats"
+            >
               📈 Thống Kê
             </button>
           </div>
@@ -161,13 +174,13 @@
           <div class="history-actions">
             <button
               id="clearHistoryBtn"
-              class="history-action-btn clear-action"
+              class="history-action-btn clear-action green-gradient"
             >
               🗑️ Xóa Lịch Sử
             </button>
             <button
               id="exportHistoryBtn"
-              class="history-action-btn export-action"
+              class="history-action-btn export-action green-gradient"
             >
               📥 Xuất CSV
             </button>

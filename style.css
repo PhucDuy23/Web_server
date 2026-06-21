@@ -42,17 +42,24 @@
 
 /* Light theme overrides when `body.light-theme` is present */
 body.light-theme {
-  --bg-primary: #f4fbf7;
-  --bg-secondary: #eaf7f2;
+  /* Use nature green palette as the dominant colors while keeping white backgrounds */
+  --primary-dark: #066f36;
+  --primary-color: #4ba31d;
+  --primary-light: #9bd102;
+
+  --bg-primary: #ffffff; /* main clean white */
+  --bg-secondary: #f6fbf6; /* very light green tint */
   --bg-tertiary: #ffffff;
-  --bg-hover: #f0f9f5;
-  --text-primary: #052022;
-  --text-secondary: #3b5b56;
-  --text-tertiary: #6b7378;
-  --border-color: #d5e7e2;
-  --shadow-sm: 0 2px 8px rgba(4, 20, 20, 0.05);
-  --shadow-md: 0 8px 24px rgba(4, 20, 20, 0.06);
-  --shadow-lg: 0 16px 48px rgba(4, 20, 20, 0.08);
+  --bg-hover: #f0fbf2;
+
+  --text-primary: #072a18; /* dark green text on white */
+  --text-secondary: #2f5f33;
+  --text-tertiary: #4a6f44;
+
+  --border-color: #e6f4e2;
+  --shadow-sm: 0 2px 8px rgba(6, 111, 54, 0.06);
+  --shadow-md: 0 8px 24px rgba(6, 111, 54, 0.08);
+  --shadow-lg: 0 16px 48px rgba(6, 111, 54, 0.1);
 }
 
 /* ==================== ANIMATIONS ==================== */
@@ -363,18 +370,38 @@ body.light-theme #mainDashboard {
   backdrop-filter: blur(14px);
 }
 body.light-theme .dashboard-header {
+  /* Light theme header with green-to-white gradient */
   background-image: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.92),
-    rgba(255, 255, 255, 0.85)
+    to top right,
+    rgba(6, 111, 54, 0.95) 0%,
+    rgba(75, 163, 29, 0.55) 40%,
+    rgba(255, 255, 255, 0.98) 100%
   );
+  color: #072a18;
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
   background-blend-mode: overlay;
-  border-bottom: 1px solid rgba(4, 20, 20, 0.08);
-  box-shadow: 0 10px 30px rgba(4, 20, 20, 0.08);
-  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(75, 163, 29, 0.08);
+  box-shadow: 0 8px 24px rgba(6, 111, 54, 0.06);
+  backdrop-filter: blur(8px);
+}
+
+/* Ensure green-gradient buttons render correctly in light theme */
+body.light-theme .green-gradient,
+body.light-theme .action-btn,
+body.light-theme .clear-btn,
+body.light-theme .small-btn.green-gradient,
+body.light-theme .history-nav-btn {
+  background: linear-gradient(45deg, var(--primary-dark), var(--primary-light));
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 8px 20px rgba(6, 111, 54, 0.14);
+}
+
+body.light-theme .login-btn.green-gradient {
+  background: linear-gradient(45deg, var(--primary-dark), var(--primary-light));
+  color: #ffffff;
 }
 
 /* Place controls inside header flow to avoid overlapping content below */
@@ -647,6 +674,58 @@ body.light-theme .menu-item {
   box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
   transform: translateY(-1px);
 }
+/* ==================== GREEN GRADIENT BUTTONS (user request) ==================== */
+/* Applies to: clear log, auto-save toggle, history button, history tabs, activity/stat buttons */
+.green-gradient,
+.action-btn,
+.clear-btn,
+#autoSaveToggleBtn,
+.history-nav-btn,
+.history-tab-btn {
+  background: linear-gradient(45deg, #066f36 0%, #9bd102 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 20px rgba(6, 111, 54, 0.18);
+  cursor: pointer;
+  font-weight: 700;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.green-gradient:disabled,
+.action-btn:disabled,
+.clear-btn:disabled,
+#autoSaveToggleBtn:disabled,
+.history-nav-btn:disabled,
+.history-tab-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.green-gradient:hover,
+.action-btn:hover,
+.clear-btn:hover,
+#autoSaveToggleBtn:hover,
+.history-nav-btn:hover,
+.history-tab-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+.history-tab-btn.active,
+.history-tab-btn.active:hover {
+  box-shadow: 0 12px 34px rgba(6, 111, 54, 0.24);
+}
+
+/* Ensure text/icons inside these buttons remain visible */
+.history-nav-btn .inline-icon,
+.action-btn .inline-icon,
+.clear-btn .inline-icon,
+#autoSaveToggleBtn .inline-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+}
+
 .dashboard-content {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
@@ -733,6 +812,17 @@ body.light-theme .menu-item {
 }
 .small-btn:hover {
   background: var(--bg-hover);
+}
+/* Ensure small buttons can adopt the green gradient when requested */
+.small-btn.green-gradient {
+  background: linear-gradient(45deg, #066f36 0%, #9bd102 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 6px 16px rgba(6, 111, 54, 0.14);
+}
+.small-btn.green-gradient:hover {
+  filter: brightness(1.05);
+  transform: translateY(-2px);
 }
 .trash-level {
   display: flex;
@@ -1046,19 +1136,64 @@ body.light-theme .menu-item {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 560px; /* match the video snapshot area height */
+  max-height: 560px; /* fixed to match center video area */
+  overflow: hidden; /* keep scrolling inside the log area */
+  --log-font-size: 18px; /* make log text larger by default inside this panel */
+}
+.command-log h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 800;
+}
+.log-controls {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: auto; /* push controls to the far right */
+  float: none;
+  align-items: center;
+}
+
+/* Make the inline icon in the command log slightly smaller so title sits closer */
+.command-log h3 .inline-icon {
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
 }
 .log-content {
   flex: 1;
   overflow-y: auto;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: 0;
   padding: var(--spacing-md);
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   border: 1px dashed var(--border-color);
-  font-size: 13px;
+  font-size: var(--log-font-size, 18px);
   font-family: "Courier New", monospace;
-  max-height: 420px;
+  min-height: 0; /* allow the flex child to shrink and enable internal scrolling */
+  max-height: calc(
+    560px - 84px
+  ); /* fit inside .command-log header + controls */
   color: var(--text-primary);
+  line-height: 1.6;
+}
+
+/* Improve scrollbar appearance for the log area */
+.log-content::-webkit-scrollbar {
+  width: 10px;
+}
+.log-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.log-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(6, 111, 54, 0.12),
+    rgba(75, 163, 29, 0.18)
+  );
+  border-radius: 8px;
 }
 
 /* Responsive adjustments */
@@ -1087,20 +1222,22 @@ body.light-theme .menu-item {
     max-height: 320px;
   }
 }
-.log-entry {
-  color: var(--text-tertiary);
-  margin-bottom: var(--spacing-xs);
-  padding: var(--spacing-xs);
-}
-
-/* Light-theme: ensure log area is readable */
-body.light-theme .log-content {
-  background: var(--bg-secondary);
+.log-content {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: var(--spacing-md);
+  padding: calc(var(--spacing-md) - 4px);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-color);
+  font-size: var(--log-font-size, 16px);
+  font-family: "Courier New", monospace;
+  min-height: 0; /* allow the flex child to shrink and enable internal scrolling */
+  max-height: calc(
+    560px - 84px
+  ); /* fit inside .command-log header + controls (updated for larger panel) */
   color: var(--text-primary);
-  border-color: var(--border-color);
-}
-.log-entry.command {
-  color: var(--primary-color);
+  line-height: 1.5;
 }
 .log-entry.success {
   color: var(--success-color);
@@ -1114,19 +1251,23 @@ body.light-theme .log-content {
 .clear-btn {
   width: 100%;
   padding: 8px;
-  background: rgba(0, 212, 255, 0.1);
-  color: var(--primary-color);
-  border: 1px solid var(--primary-color);
+  background: linear-gradient(45deg, #066f36 0%, #9bd102 100%);
+  color: #ffffff;
+  border: none;
   border-radius: var(--radius-md);
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.3s;
-  font-weight: 600;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease,
+    box-shadow 0.12s ease;
+  font-weight: 700;
   text-transform: uppercase;
+  box-shadow: 0 8px 20px rgba(6, 111, 54, 0.18);
 }
 .clear-btn:hover {
-  background: rgba(0, 212, 255, 0.2);
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+  transform: translateY(-2px);
+  filter: brightness(1.05);
 }
 
 /* ==================== FOOTER ==================== */
@@ -1591,6 +1732,17 @@ body.light-theme .footer-credits {
 .login-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 30px rgba(2, 20, 45, 0.12);
+}
+/* Ensure explicit green-gradient variant for login button overrides default login styles */
+.login-btn.green-gradient {
+  background: linear-gradient(45deg, #066f36 0%, #9bd102 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 10px 30px rgba(6, 111, 54, 0.18);
+}
+.login-btn.green-gradient:hover {
+  filter: brightness(1.05);
+  transform: translateY(-2px);
 }
 .login-footer {
   text-align: center;
