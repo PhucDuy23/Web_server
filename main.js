@@ -4,8 +4,8 @@
 
 // -------- config.js --------
 const CONFIG = {
-  API_BASE_URL: "http://10.163.215.207:8085",
-  WS_URL: "ws://10.163.215.207:8080",
+  API_BASE_URL: "http://192.168.1.40:8085",
+  WS_URL: "ws://192.168.1.40:8080",
   DEMO_MODE: false,
   CHART_UPDATE_INTERVAL: 1000,
   TRASH_CHECK_INTERVAL: 2000,
@@ -725,12 +725,15 @@ function updateTrashLevels(a, b, c, d) {
     "other-fill": { empty: "images/K_0.png", full: "images/K_100.png" },
   };
 
+  let currentFullBins = [];
+
   levels.forEach((level) => {
     const element = document.getElementById(level.id);
     if (element) {
       const icon = element.querySelector(".trash-icon");
       const isFull = Boolean(level.value);
       if (isFull) {
+        currentFullBins.push(level.label);
         element.classList.add("full");
         element.classList.remove("available");
         if (icon && imageMap[level.id]) icon.src = imageMap[level.id].full;
@@ -746,6 +749,41 @@ function updateTrashLevels(a, b, c, d) {
       }
     }
   });
+
+  if (typeof window.lastFullBins === "undefined") {
+    window.lastFullBins = [];
+    window.trashWarningDismissed = false;
+  }
+
+  let changed = false;
+  if (currentFullBins.length !== window.lastFullBins.length) {
+    changed = true;
+  } else {
+    for (let i = 0; i < currentFullBins.length; i++) {
+      if (!window.lastFullBins.includes(currentFullBins[i])) {
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  if (changed) {
+    window.lastFullBins = currentFullBins;
+    window.trashWarningDismissed = false;
+  }
+
+  const overlay = document.getElementById("trashFullOverlay");
+  const list = document.getElementById("fullBinsList");
+  if (overlay && list) {
+    if (currentFullBins.length > 0 && !window.trashWarningDismissed) {
+      list.innerHTML = currentFullBins
+        .map((label) => `<div>- ${label} đầy</div>`)
+        .join("");
+      overlay.style.display = "flex";
+    } else if (currentFullBins.length === 0) {
+      overlay.style.display = "none";
+    }
+  }
 }
 function updateBatteryStatus(percentage) {
   appState.statistics.battery = percentage;
@@ -1165,6 +1203,86 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// Bridge: accept numeric state (0..3) and notify map/UI
+(() => {
+  const NUM_TO_KEY = { 0: "waiting", 1: "moving", 2: "arrived", 3: "returned" };
+  const stateColor = {
+    waiting: "#888",
+    moving: "#2ecc71",
+    arrived: "#e74c3c",
+    returned: "#f1c40f",
+  };
+
+  function applyStateKey(key) {
+    try {
+      if (typeof window.setVehicleState === "function")
+        window.setVehicleState(key);
+    } catch (e) {}
+    try {
+      if (window._simMap && window._simMap.vehicle)
+        window._simMap.vehicle.color = stateColor[key] || "#888";
+    } catch (e) {}
+  }
+
+  window.setVehicleStateFromNumber = function (n) {
+    const key = NUM_TO_KEY.hasOwnProperty(n) ? NUM_TO_KEY[n] : "waiting";
+    // prefer VehicleStatus instance if available
+    try {
+      if (
+        window.vehicleStatusInstance &&
+        typeof window.vehicleStatusInstance.setState === "function"
+      ) {
+        window.vehicleStatusInstance.setState(n);
+        return;
+      }
+    } catch (e) {}
+    applyStateKey(key);
+  };
+
+  // convenience alias
+  window.notifyVehicleState = function (n) {
+    window.setVehicleStateFromNumber(n);
+  };
+
+  // Connect an external state source (your class instance)
+  // Supported source shapes:
+  // - { onStateChange: fn } where fn(callback) will be called with numeric state
+  // - { subscribe: fn } similar
+  // - { getState: fn } will be polled every 500ms; returns an "unsubscribe" function when connect returns
+  window.connectVehicleStateSource = function (source) {
+    if (!source) return null;
+    if (typeof source.onStateChange === "function") {
+      try {
+        source.onStateChange((n) =>
+          window.setVehicleStateFromNumber(Number(n)),
+        );
+      } catch (e) {
+        console.warn("connectVehicleStateSource.onStateChange failed", e);
+      }
+      return null;
+    }
+    if (typeof source.subscribe === "function") {
+      try {
+        source.subscribe((n) => window.setVehicleStateFromNumber(Number(n)));
+      } catch (e) {
+        console.warn("connectVehicleStateSource.subscribe failed", e);
+      }
+      return null;
+    }
+    if (typeof source.getState === "function") {
+      const id = setInterval(() => {
+        try {
+          const n = Number(source.getState());
+          if (!Number.isNaN(n)) window.setVehicleStateFromNumber(n);
+        } catch (e) {}
+      }, 500);
+      return () => clearInterval(id);
+    }
+    console.warn("connectVehicleStateSource: unsupported source object");
+    return null;
+  };
+})();
+
 // -------- Original main.js initialization adapted (no imports) --------
 document.addEventListener("DOMContentLoaded", () => {
   console.log("🚀 Dashboard initialized");
@@ -1456,6 +1574,15 @@ function initializeEventListeners() {
     historyNavBtn.addEventListener("click", () => {
       navigateTo("history");
     });
+
+  const closeTrashWarningBtn = document.getElementById("closeTrashWarningBtn");
+  if (closeTrashWarningBtn) {
+    closeTrashWarningBtn.addEventListener("click", () => {
+      window.trashWarningDismissed = true;
+      const overlay = document.getElementById("trashFullOverlay");
+      if (overlay) overlay.style.display = "none";
+    });
+  }
 
   const saveSnapshotBtn = document.getElementById("saveSnapshotBtn");
   if (saveSnapshotBtn) {
@@ -1792,3 +1919,336 @@ window.addEventListener("beforeunload", () => {
 });
 
 console.log("✅ Bundled main.js loaded");
+
+// ==================== Robot Vehicle Map (Canvas) ====================
+class RobotVehicleMap {
+  constructor(canvasId) {
+    this.canvas = document.getElementById(canvasId);
+    if (!this.canvas) return;
+    this.ctx = this.canvas.getContext("2d");
+    this.width = this.canvas.width;
+    this.height = this.canvas.height;
+
+    // Points
+    this.home = {
+      x: Math.round(this.width * 0.18),
+      y: Math.round(this.height / 2),
+    };
+    this.dest = {
+      x: Math.round(this.width * 0.82),
+      y: Math.round(this.height / 2),
+    };
+
+    // Vehicle State
+    this.vehicle = { x: this.home.x, y: this.home.y, r: 8, color: "#888" };
+    this.target = { x: this.home.x, y: this.home.y };
+    this.speed = 100; // pixels per second
+
+    this.lastTime = performance.now();
+    this.animFrameId = null;
+
+    this.startAnimation();
+  }
+
+  startAnimation() {
+    const loop = (timestamp) => {
+      const dt = (timestamp - this.lastTime) / 1000;
+      this.lastTime = timestamp;
+      this.update(dt);
+      this.draw();
+      this.animFrameId = requestAnimationFrame(loop);
+    };
+    this.animFrameId = requestAnimationFrame(loop);
+  }
+
+  update(dt) {
+    if (!this.vehicle || !this.target) return;
+    const dx = this.target.x - this.vehicle.x;
+    const dy = this.target.y - this.vehicle.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 1) {
+      // threshold to prevent jitter
+      const move = this.speed * dt;
+      if (move >= dist) {
+        this.vehicle.x = this.target.x;
+        this.vehicle.y = this.target.y;
+      } else {
+        this.vehicle.x += (dx / dist) * move;
+        this.vehicle.y += (dy / dist) * move;
+      }
+    }
+  }
+
+  draw() {
+    if (!this.ctx || !this.vehicle) return;
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.width, this.height);
+
+    // Background based on theme
+    ctx.fillStyle =
+      getComputedStyle(document.body).getPropertyValue("--bg-tertiary") ||
+      "#222";
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    // Draw Home
+    ctx.fillStyle = "#2d8f2a";
+    ctx.beginPath();
+    ctx.arc(this.home.x, this.home.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "var(--text-primary)";
+    ctx.font = "11px sans-serif";
+    ctx.fillText("Home", this.home.x + 10, this.home.y + 4);
+
+    // Draw Destination
+    ctx.fillStyle = "#c0392b";
+    ctx.beginPath();
+    ctx.rect(this.dest.x - 6, this.dest.y - 6, 12, 12);
+    ctx.fill();
+    ctx.fillStyle = "var(--text-primary)";
+    ctx.fillText("Destination", this.dest.x - 70, this.dest.y - 12);
+
+    // Draw Vehicle
+    ctx.beginPath();
+    ctx.fillStyle = this.vehicle.color;
+    ctx.arc(this.vehicle.x, this.vehicle.y, this.vehicle.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  setState(stateKey) {
+    if (!this.vehicle) return;
+    const colors = {
+      waiting: "#888",
+      moving: "#2ecc71",
+      arrived: "#e74c3c",
+      returned: "#f1c40f",
+    };
+    this.vehicle.color = colors[stateKey] || "#888";
+    this.currentState = stateKey; // Keep track of state for progress calculation
+
+    // Target assignment
+    if (stateKey === "moving" || stateKey === "arrived") {
+      this.target = { x: this.dest.x, y: this.dest.y };
+    } else {
+      this.target = { x: this.home.x, y: this.home.y };
+    }
+
+    // Adjust speed based on state for smooth simulation
+    if (stateKey === "waiting" || stateKey === "arrived") {
+      this.speed = 300; // fast snap
+    } else {
+      this.speed = 100; // normal movement
+    }
+  }
+
+  setProgress(percent) {
+    if (!this.vehicle) return;
+    percent = Math.max(0, Math.min(100, percent)); // Clamp 0-100
+
+    let start, end;
+    if (this.currentState === "moving") {
+      start = this.home;
+      end = this.dest;
+    } else if (this.currentState === "returned") {
+      start = this.dest;
+      end = this.home;
+    } else {
+      return; // Do nothing if waiting or arrived
+    }
+
+    // Calculate exact target coordinate based on percentage
+    this.target.x = start.x + (end.x - start.x) * (percent / 100);
+    this.target.y = start.y + (end.y - start.y) * (percent / 100);
+
+    // Increase speed slightly so the vehicle snaps to the reported progress nicely
+    this.speed = 250;
+  }
+}
+
+// Global variable for map instance
+let globalRobotMap = null;
+
+// Global Function to update Vehicle State from Raspberry Pi
+window.updateVehicleStateFromPi = function (stateValue, progress = null) {
+  // 1. Parse Input
+  let stateKey = "waiting";
+  const strVal = String(stateValue).toLowerCase().trim();
+
+  if (strVal === "0" || strVal === "waiting") stateKey = "waiting";
+  else if (strVal === "1" || strVal === "moving") stateKey = "moving";
+  else if (strVal === "2" || strVal === "arrived") stateKey = "arrived";
+  else if (strVal === "3" || strVal === "returned") stateKey = "returned";
+
+  // 2. Update UI State Lights
+  document
+    .querySelectorAll("#vehiclePanel .vehicle-state")
+    .forEach((el) => el.classList.remove("active"));
+  const activeEl = document.getElementById(
+    "state" + stateKey.charAt(0).toUpperCase() + stateKey.slice(1),
+  );
+  if (activeEl) activeEl.classList.add("active");
+
+  // Update tiny vehicleStatus chip if it exists
+  try {
+    const chip = document.getElementById("vehicleStatus");
+    if (chip) {
+      const dot = chip.querySelector(".status-dot");
+      const text = chip.querySelector(".status-text");
+      if (text) {
+        text.textContent =
+          {
+            waiting: "Chờ",
+            moving: "Đang di chuyển",
+            arrived: "Đã đến",
+            returned: "Đã về",
+          }[stateKey] || "Chờ";
+      }
+      if (dot) {
+        dot.style.backgroundColor =
+          stateKey === "moving"
+            ? "#3498db"
+            : stateKey === "waiting"
+              ? "#f1c40f"
+              : "#2ecc71";
+      }
+    }
+  } catch (e) {}
+
+  // 3. Update Canvas Map Target & Color
+  if (globalRobotMap && globalRobotMap.vehicle) {
+    globalRobotMap.setState(stateKey);
+
+    // Handle Progress if provided
+    if (progress !== null && !isNaN(progress)) {
+      globalRobotMap.setProgress(parseFloat(progress));
+    }
+  }
+
+  // Update Progress UI Text
+  try {
+    const progText = document.getElementById("vehicleProgressText");
+    if (progText) {
+      if (
+        progress !== null &&
+        !isNaN(progress) &&
+        (stateKey === "moving" || stateKey === "returned")
+      ) {
+        progText.innerText = Math.round(progress) + "%";
+      } else {
+        progText.innerText = "";
+      }
+    }
+  } catch (e) {}
+
+  // 4. Log Activity
+  try {
+    const textMap = {
+      waiting: "Chờ",
+      moving: "Đang di chuyển",
+      arrived: "Đã đến",
+      returned: "Đã về",
+    };
+    if (typeof addActivity === "function") {
+      addActivity("🚗 Trạng thái: " + (textMap[stateKey] || "Chờ"), "event");
+    }
+  } catch (e) {}
+};
+
+// Expose legacy setVehicleState for backward compatibility if any internal code calls it
+window.setVehicleState = window.updateVehicleStateFromPi;
+
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    if (document.getElementById("mapCanvas")) {
+      globalRobotMap = new RobotVehicleMap("mapCanvas");
+    }
+    // Initial state
+    setTimeout(() => window.updateVehicleStateFromPi("waiting"), 200);
+  } catch (err) {
+    console.warn("RobotVehicleMap init failed", err);
+  }
+});
+// ------------------- WebSocket Integration -------------------
+const WS_URL = "ws://<PI_IP>:8080"; // TODO: replace with Pi IP
+let ws = new WebSocket(WS_URL);
+
+ws.addEventListener("open", () => {
+  console.log("✅ WebSocket connected to Pi");
+});
+
+ws.addEventListener("message", (event) => {
+  let payload;
+  try {
+    payload = JSON.parse(event.data);
+  } catch (e) {
+    console.warn("❌ Invalid JSON from Pi:", event.data);
+    return;
+  }
+
+  // Vehicle state & progress
+  if (payload.state !== undefined) {
+    window.updateVehicleStateFromPi(payload.state, payload.progress ?? null);
+  }
+
+  // Trash bin status
+  if (payload.trash) {
+    const { HC, VC, TC, RK } = payload.trash;
+    updateTrashLevels(HC, VC, TC, RK);
+  }
+
+  // Battery level
+  if (typeof payload.battery === "number") {
+    updateBatteryStatus(payload.battery);
+  }
+
+  // Log messages
+  if (typeof payload.log === "string") {
+    const type = /error|lỗi/i.test(payload.log)
+      ? "error"
+      : /warning|cảnh báo/i.test(payload.log)
+        ? "warning"
+        : "info";
+    addCommandLog(payload.log, type);
+  }
+
+  // Snapshot image URL
+  if (typeof payload.snapshot === "string") {
+    addSnapshotToGallery(payload.snapshot);
+  }
+});
+
+ws.addEventListener("error", (err) => {
+  console.error("❌ WebSocket error:", err);
+});
+
+ws.addEventListener("close", (e) => {
+  console.warn(`📴 WebSocket closed (code=${e.code})`);
+  // Optional reconnection logic
+  setTimeout(() => {
+    console.log("🔁 Reconnecting WebSocket...");
+    ws = new WebSocket(WS_URL);
+  }, 3000);
+});
+
+// ------------------- Helper Functions -------------------
+function updateBatteryStatus(percent) {
+  const el = document.getElementById("batteryLevel");
+  if (!el) return;
+  const clamped = Math.max(0, Math.min(100, percent));
+  el.textContent = `${clamped}%`;
+  el.style.color =
+    clamped > 60 ? "#2ecc71" : clamped > 30 ? "#f1c40f" : "#e74c3c";
+}
+
+function addSnapshotToGallery(url) {
+  const container = document.getElementById("snapshotGallery");
+  if (!container) return;
+  const img = document.createElement("img");
+  img.src = url;
+  img.alt = "Snapshot";
+  img.className = "snapshot-thumb";
+  container.prepend(img);
+}

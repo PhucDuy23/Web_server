@@ -627,6 +627,9 @@ body.light-theme .menu-item {
 .login-header h1,
 .video-header h3,
 .trash-monitor h3,
+.system-stats h3,
+.vehicle-panel h3,
+.command-log h3,
 .manual-control h3 {
   display: flex;
   align-items: center;
@@ -767,7 +770,8 @@ body.light-theme .menu-item {
 .trash-monitor,
 .system-stats,
 .manual-control,
-.command-log {
+.command-log,
+.vehicle-panel {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -778,6 +782,7 @@ body.light-theme .menu-item {
 .system-stats h3,
 .manual-control h3,
 .command-log h3,
+.vehicle-panel h3,
 .video-container h3 {
   font-size: 14px;
   font-weight: 700;
@@ -1136,10 +1141,10 @@ body.light-theme .menu-item {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 560px; /* match the video snapshot area height */
-  max-height: 560px; /* fixed to match center video area */
+  min-height: 320px; /* reduced height to make panel smaller */
+  max-height: 360px; /* smaller fixed height */
   overflow: hidden; /* keep scrolling inside the log area */
-  --log-font-size: 18px; /* make log text larger by default inside this panel */
+  --log-font-size: 14px; /* slightly smaller default font inside this panel */
 }
 .command-log h3 {
   display: flex;
@@ -1247,6 +1252,106 @@ body.light-theme .menu-item {
 }
 .log-entry.error {
   color: var(--danger-color);
+}
+.vehicle-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vehicle-panel h4 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--primary-color);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.vehicle-states {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+}
+.vehicle-state {
+  flex: 1;
+  text-align: center;
+  padding: 8px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: default;
+  border: 1px solid transparent;
+}
+.vehicle-state.active {
+  color: #fff;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+.vehicle-state.waiting {
+}
+.vehicle-state.moving {
+}
+.vehicle-state.arrived {
+}
+.vehicle-state.returned {
+}
+.map-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-md);
+}
+.map-panel h3 {
+  font-size: 14px;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.map-panel .inline-icon {
+  width: 20px;
+
+  /* Vehicle panel map styling */
+  .vehicle-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+  }
+  .vehicle-panel h4 {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: 13px;
+  }
+  .vehicle-states {
+    display: flex;
+    gap: 8px;
+  }
+  .vehicle-panel #mapContainer {
+    width: 100%;
+  }
+  .vehicle-panel #vehicleMapCanvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+  }
+  height: 20px;
+}
+.map-controls .small-btn {
+  padding: 6px 10px;
 }
 .clear-btn {
   width: 100%;

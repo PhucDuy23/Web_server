@@ -63,6 +63,24 @@
       </div>
     </div>
 
+    <!-- ==================== TRASH FULL WARNING OVERLAY ==================== -->
+    <div id="trashFullOverlay" class="login-overlay" style="display: none; z-index: 9999;">
+      <div class="login-container" style="text-align: center; border: 2px solid var(--danger-color); max-width: 450px;">
+        <div class="login-header">
+          <h1 style="color: var(--danger-color); justify-content: center; font-size: 22px;">
+            ⚠️ CẢNH BÁO
+          </h1>
+        </div>
+        <div style="font-size: 18px; margin-bottom: 20px; font-weight: bold; color: var(--text-primary);">
+          Phát hiện thùng rác đã đầy:
+        </div>
+        <div id="fullBinsList" style="font-size: 20px; color: var(--danger-color); margin-bottom: 30px; font-weight: bold; line-height: 1.6;">
+          <!-- list of full bins -->
+        </div>
+        <button id="closeTrashWarningBtn" class="login-btn green-gradient" style="background: var(--danger-color);">Đã Hiểu</button>
+      </div>
+    </div>
+
     <!-- ==================== MAIN DASHBOARD ==================== -->
     <div id="mainDashboard" class="dashboard">
       <!-- Header -->
@@ -295,10 +313,46 @@
           </div>
 
           <!-- IMU Monitor removed -->
+
         </section>
 
         <!-- Right Sidebar (manual controls removed) -->
         <aside class="sidebar-right">
+          <!-- Vehicle Status Panel (same-level as command-log) -->
+          <div class="vehicle-panel" id="vehiclePanel">
+            <h3>
+              <img
+                src="images/icon_login.png"
+                alt="Xe"
+                class="inline-icon section-icon"
+              />
+              Trạng Thái Xe
+              <span id="vehicleProgressText" style="float:right; font-size: 13px; color: var(--text-secondary); text-transform: none; letter-spacing: normal; margin-top: 4px;"></span>
+            </h3>
+            <div class="vehicle-states">
+              <div class="vehicle-state waiting active" id="stateWaiting">
+                Chờ
+              </div>
+              <div class="vehicle-state moving" id="stateMoving">Di chuyển</div>
+              <div class="vehicle-state arrived" id="stateArrived">Đã đến</div>
+              <div class="vehicle-state returned" id="stateReturned">Đã về</div>
+            </div>
+            <!-- Bản đồ nằm trong panel trạng thái -->
+            <div id="mapContainer" style="margin-top: 10px">
+              <canvas
+                id="mapCanvas"
+                width="360"
+                height="160"
+                style="
+                  width: 100%;
+                  height: auto;
+                  border-radius: 8px;
+                  border: 1px solid rgba(255, 255, 255, 0.06);
+                  background: var(--bg-tertiary);
+                "
+              ></canvas>
+            </div>
+          </div>
           <!-- Command Log -->
           <div class="command-log">
             <h3>
